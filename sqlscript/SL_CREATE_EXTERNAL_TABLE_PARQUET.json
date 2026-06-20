@@ -1,0 +1,17 @@
+{
+	"name": "SL_CREATE_EXTERNAL_TABLE_PARQUET",
+	"properties": {
+		"content": {
+			"query": "IF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE name = 'SynapseParquetFormat') \n\tCREATE EXTERNAL FILE FORMAT [SynapseParquetFormat] \n\tWITH ( FORMAT_TYPE = PARQUET)\nGO\n\n-- IF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'quant-container_quantcloudstorage_dfs_core_windows_net') \n-- \tCREATE EXTERNAL DATA SOURCE [quant-container_quantcloudstorage_dfs_core_windows_net] \n-- \tWITH (\n-- \t\tLOCATION = 'abfss://quant-container@quantcloudstorage.dfs.core.windows.net' \n-- \t)\n-- GO\n\nCREATE EXTERNAL TABLE dbo.titanic (\n\t[PassengerId] bigint,\n\t[Survived] bigint,\n\t[Pclass] bigint,\n\t[Name] nvarchar(4000),\n\t[Sex] nvarchar(4000),\n\t[Age] float,\n\t[SibSp] bigint,\n\t[Parch] bigint,\n\t[Ticket] nvarchar(4000),\n\t[Fare] float,\n\t[Cabin] nvarchar(4000),\n\t[Embarked] nvarchar(4000)\n\t)\n\tWITH (\n\tLOCATION = 'Raw/titanic.parquet',\n\tDATA_SOURCE = [quant-container_quantcloudstorage_dfs_core_windows_net],\n\tFILE_FORMAT = [SynapseParquetFormat]\n\t)\nGO\n\n\nSELECT TOP 100 * FROM dbo.titanic\nGO",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "qctserverless",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

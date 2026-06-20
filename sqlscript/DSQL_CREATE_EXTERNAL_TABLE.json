@@ -1,0 +1,17 @@
+{
+	"name": "DSQL_CREATE_EXTERNAL_TABLE",
+	"properties": {
+		"content": {
+			"query": "\ndrop EXTERNAL FILE FORMAT [SynapseParquetFormatDedicated];\n\nIF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE name = 'SynapseCsvFormatDedicated') \n\tCREATE EXTERNAL FILE FORMAT [SynapseCsvFormatDedicated] \n\tWITH ( FORMAT_TYPE = DELIMITEDTEXT ,\n\t       FORMAT_OPTIONS (\n\t\t\t FIELD_TERMINATOR = ',',\n\t\t\t FIRST_ROW = 11,\n\t\t\t USE_TYPE_DEFAULT = FALSE\n\t\t\t))\nGO\n\nIF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'quant-container_quantcloudstorage_dfs_core_windows_net_dedicated') \n\tCREATE EXTERNAL DATA SOURCE [quant-container_quantcloudstorage_dfs_core_windows_net_dedicated] \n\tWITH (\n\t\tLOCATION = 'abfss://quant-container@quantcloudstorage.dfs.core.windows.net' \n\t)\nGO\n\n-- drop EXTERNAL TABLE [dbo].[players];\n\nCREATE EXTERNAL TABLE [dbo].[players]\n(\n    [player_id] BIGINT,\n    [first_name] NVARCHAR(100),\n    [last_name] NVARCHAR(100),\n    [name] NVARCHAR(200),\n    [last_season] INT,\n    [current_club_id] BIGINT,\n    [player_code] NVARCHAR(200),\n    [country_of_birth] NVARCHAR(100),\n    [city_of_birth] NVARCHAR(100),\n    [country_of_citizenship] NVARCHAR(100),\n    [date_of_birth] DATETIME2,\n    [sub_position] NVARCHAR(100),\n    [position] NVARCHAR(100),\n    [foot] NVARCHAR(20),\n    [height_in_cm] INT,\n    [contract_expiration_date] DATE,\n    [agent_name] NVARCHAR(200),\n    [image_url] NVARCHAR(1000),\n    [international_caps] INT,\n    [international_goals] INT,\n    [current_national_team_id] BIGINT,\n    [url] NVARCHAR(1000),\n    [current_club_domestic_competition_id] NVARCHAR(20),\n    [current_club_name] NVARCHAR(300),\n    [market_value_in_eur] BIGINT,\n    [highest_market_value_in_eur] BIGINT\n)\nWITH\n(\n    LOCATION = 'Raw/players.csv',\n    DATA_SOURCE = [quant-container_quantcloudstorage_dfs_core_windows_net_dedicated],\n    FILE_FORMAT = [SynapseCsvFormatDedicated]\n);\n\n\nselect * from [dbo].[players];\n\n\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "qctdedicated",
+				"poolName": "qctdedicated"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
