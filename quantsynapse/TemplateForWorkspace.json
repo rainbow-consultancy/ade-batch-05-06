@@ -22,6 +22,258 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('workspaceName'), '/mycpu')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/PL_COPY_CSV_FILES')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Metadata",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "CsvDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get Metadata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get Metadata').output.childItems",
+								"type": "Expression"
+							},
+							"batchCount": 10,
+							"activities": [
+								{
+									"name": "CopyCsvFiles",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "SourceCsvDataset",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "TargetCsvDatasets",
+											"type": "DatasetReference",
+											"parameters": {
+												"TargetFile": {
+													"value": "@concat(toLower(item().name), utcNow())",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/CsvDataset')]",
+				"[concat(variables('workspaceId'), '/datasets/SourceCsvDataset')]",
+				"[concat(variables('workspaceId'), '/datasets/TargetCsvDatasets')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/CsvDataset')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "quantsynapse-WorkspaceDefaultStorage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "Processesed/csv",
+						"fileSystem": "quant-container"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/quantsynapse-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SourceCsvDataset')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "quantsynapse-WorkspaceDefaultStorage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"FileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().FileName",
+							"type": "Expression"
+						},
+						"folderPath": "Processesed/csv",
+						"fileSystem": "quant-container"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/quantsynapse-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/TargetCsvDatasets')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "quantsynapse-WorkspaceDefaultStorage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"TargetFile": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().TargetFile",
+							"type": "Expression"
+						},
+						"folderPath": "synapse_data",
+						"fileSystem": "quant-container"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/quantsynapse-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/quantsynapse-WorkspaceDefaultSqlServer')]",
 			"type": "Microsoft.Synapse/workspaces/linkedServices",
 			"apiVersion": "2019-06-01-preview",
@@ -94,6 +346,26 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/DSQL_CREATE_EXTERNAL_TABLE')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\ndrop EXTERNAL FILE FORMAT [SynapseParquetFormatDedicated];\n\nIF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE name = 'SynapseCsvFormatDedicated') \n\tCREATE EXTERNAL FILE FORMAT [SynapseCsvFormatDedicated] \n\tWITH ( FORMAT_TYPE = DELIMITEDTEXT ,\n\t       FORMAT_OPTIONS (\n\t\t\t FIELD_TERMINATOR = ',',\n\t\t\t FIRST_ROW = 11,\n\t\t\t USE_TYPE_DEFAULT = FALSE\n\t\t\t))\nGO\n\nIF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'quant-container_quantcloudstorage_dfs_core_windows_net_dedicated') \n\tCREATE EXTERNAL DATA SOURCE [quant-container_quantcloudstorage_dfs_core_windows_net_dedicated] \n\tWITH (\n\t\tLOCATION = 'abfss://quant-container@quantcloudstorage.dfs.core.windows.net' \n\t)\nGO\n\n-- drop EXTERNAL TABLE [dbo].[players];\n\nCREATE EXTERNAL TABLE [dbo].[players]\n(\n    [player_id] BIGINT,\n    [first_name] NVARCHAR(100),\n    [last_name] NVARCHAR(100),\n    [name] NVARCHAR(200),\n    [last_season] INT,\n    [current_club_id] BIGINT,\n    [player_code] NVARCHAR(200),\n    [country_of_birth] NVARCHAR(100),\n    [city_of_birth] NVARCHAR(100),\n    [country_of_citizenship] NVARCHAR(100),\n    [date_of_birth] DATETIME2,\n    [sub_position] NVARCHAR(100),\n    [position] NVARCHAR(100),\n    [foot] NVARCHAR(20),\n    [height_in_cm] INT,\n    [contract_expiration_date] DATE,\n    [agent_name] NVARCHAR(200),\n    [image_url] NVARCHAR(1000),\n    [international_caps] INT,\n    [international_goals] INT,\n    [current_national_team_id] BIGINT,\n    [url] NVARCHAR(1000),\n    [current_club_domestic_competition_id] NVARCHAR(20),\n    [current_club_name] NVARCHAR(300),\n    [market_value_in_eur] BIGINT,\n    [highest_market_value_in_eur] BIGINT\n)\nWITH\n(\n    LOCATION = 'Raw/players.csv',\n    DATA_SOURCE = [quant-container_quantcloudstorage_dfs_core_windows_net_dedicated],\n    FILE_FORMAT = [SynapseCsvFormatDedicated]\n);\n\n\nselect * from [dbo].[players];\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "qctdedicated",
+						"poolName": "qctdedicated"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/ReadCsvFileFromADLS')]",
 			"type": "Microsoft.Synapse/workspaces/sqlscripts",
 			"apiVersion": "2019-06-01-preview",
@@ -112,6 +384,215 @@
 				"type": "SqlQuery"
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SL_CREATE_DB')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\n-- CREATE A DATABASE IN SERVERLESS SQL POOL\n\nCREATE DATABASE QCTSERVERLESS;\n\n\n-- DEDICATED SQL POOL DATABASE \n-- THIS STORES THE DATA INSIDE THE SYNAPSE ANALYTICS PLATFORM, AND THIS TABLES WERE THE PROPER DATABASE TABLES\n\n\n-- DEDICATED SERVERLESS SQL POOL DATABASE \n-- THIS REFERS THE DATA THAT IS STORED IN EXTERNAL LOCATION (BLOB STORAGE | ADLS GEN2) AND THE DATA PYSICALLY WILL BE PRESENT IN EXTERNAL LOCATION ONLY BUT YOU CAN QUERY\n-- THE DATA JUST AS IT PRESENT IN YOUR SYNAPSE STUDIO AND THIS CAN QUERY DATA FROM ANY FILE FORMAAT (PARQUET, CSV, DELTA)\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SL_CREATE_EXTERNAL_TABLE_PARQUET')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "IF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE name = 'SynapseParquetFormat') \n\tCREATE EXTERNAL FILE FORMAT [SynapseParquetFormat] \n\tWITH ( FORMAT_TYPE = PARQUET)\nGO\n\n-- IF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'quant-container_quantcloudstorage_dfs_core_windows_net') \n-- \tCREATE EXTERNAL DATA SOURCE [quant-container_quantcloudstorage_dfs_core_windows_net] \n-- \tWITH (\n-- \t\tLOCATION = 'abfss://quant-container@quantcloudstorage.dfs.core.windows.net' \n-- \t)\n-- GO\n\nCREATE EXTERNAL TABLE dbo.titanic (\n\t[PassengerId] bigint,\n\t[Survived] bigint,\n\t[Pclass] bigint,\n\t[Name] nvarchar(4000),\n\t[Sex] nvarchar(4000),\n\t[Age] float,\n\t[SibSp] bigint,\n\t[Parch] bigint,\n\t[Ticket] nvarchar(4000),\n\t[Fare] float,\n\t[Cabin] nvarchar(4000),\n\t[Embarked] nvarchar(4000)\n\t)\n\tWITH (\n\tLOCATION = 'Raw/titanic.parquet',\n\tDATA_SOURCE = [quant-container_quantcloudstorage_dfs_core_windows_net],\n\tFILE_FORMAT = [SynapseParquetFormat]\n\t)\nGO\n\n\nSELECT TOP 100 * FROM dbo.titanic\nGO",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "qctserverless",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SL_CREATE_EXT_TABLE')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "IF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE name = 'SynapseDelimitedTextFormat') \n\tCREATE EXTERNAL FILE FORMAT [SynapseDelimitedTextFormat] \n\tWITH ( FORMAT_TYPE = DELIMITEDTEXT ,\n\t       FORMAT_OPTIONS (\n\t\t\t FIELD_TERMINATOR = ',',\n\t\t\t FIRST_ROW = 11,\n\t\t\t USE_TYPE_DEFAULT = FALSE\n\t\t\t))\nGO\n\n-- DROP EXTERNAL FILE FORMAT [SynapseDelimitedTextFormat];\n\nIF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'quant-container_quantcloudstorage_dfs_core_windows_net') \n\tCREATE EXTERNAL DATA SOURCE [quant-container_quantcloudstorage_dfs_core_windows_net] \n\tWITH (\n\t\tLOCATION = 'abfss://quant-container@quantcloudstorage.dfs.core.windows.net' \n\t)\nGO\n\nCREATE EXTERNAL TABLE dbo.tallest_people (\n\t[id] bigint,\n\t[name] nvarchar(4000),\n\t[gender] nvarchar(4000),\n\t[country] nvarchar(4000),\n\t[continent] nvarchar(4000),\n\t[height_cm] bigint,\n\t[height_ft_in] nvarchar(4000),\n\t[weight_kg] bigint,\n\t[birth_year] bigint,\n\t[death_year] bigint,\n\t[lifespan] bigint,\n\t[occupation] nvarchar(4000),\n\t[medical_condition] nvarchar(4000),\n\t[is_alive] bigint\n\t)\n\tWITH (\n\tLOCATION = 'Raw/tallest_people_in_the_world.csv',\n\tDATA_SOURCE = [quant-container_quantcloudstorage_dfs_core_windows_net],\n\tFILE_FORMAT = [SynapseDelimitedTextFormat]\n\t)\nGO\n\n\nSELECT TOP 100 * FROM dbo.tallest_people;",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "qctserverless",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/PysparkRead')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "mycpu",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "6ff59f90-9a22-4103-bd30-2412c7e456df"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/a8c62c57-2636-40f5-a753-24c196a04e1f/resourceGroups/rg-quantcloud-technologies/providers/Microsoft.Synapse/workspaces/quantsynapse/bigDataPools/mycpu",
+						"name": "mycpu",
+						"type": "Spark",
+						"endpoint": "https://quantsynapse.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/mycpu",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.5",
+						"nodeCount": 10,
+						"cores": 4,
+						"memory": 28
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"print(\"Spark Read Operation\")"
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"from pyspark.sql import functions as F"
+						],
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"input_path = \"abfss://quant-container@quantcloudstorage.dfs.core.windows.net/Processesed/csv/BigMart Sales.csv\"\n",
+							"\n",
+							"sales_df = spark.read.format(\"csv\").option(\"inferSchema\", True).option(\"header\", True).load(input_path)\n",
+							"display(sales_df)"
+						],
+						"outputs": [],
+						"execution_count": 9
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"collapsed": false
+						},
+						"source": [
+							"sales_df = sales_df.filter(F.col(\"Item_Weight\").isNotNull())\n",
+							"display(sales_df)"
+						],
+						"outputs": [],
+						"execution_count": 10
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"output_path = \"abfss://quant-container@quantcloudstorage.dfs.core.windows.net/Processesed/Synapse/bigmart_sales\"\n",
+							"sales_df.write.format(\"parquet\").mode(\"overwrite\").save(output_path)"
+						],
+						"outputs": [],
+						"execution_count": 11
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"mssparkutils.fs.ls(\"abfss://quant-container@quantcloudstorage.dfs.core.windows.net/Processesed/parquet/\")"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"for file in mssparkutils.fs.ls(\"abfss://quant-container@quantcloudstorage.dfs.core.windows.net/Processesed/parquet/\"):\n",
+							"    print(file.name)\n",
+							"    print(file.path)"
+						],
+						"outputs": [],
+						"execution_count": 16
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/mycpu')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"autoPause": {
+					"enabled": true,
+					"delayInMinutes": 15
+				},
+				"autoScale": {
+					"enabled": true,
+					"maxNodeCount": 3,
+					"minNodeCount": 3
+				},
+				"nodeCount": 10,
+				"nodeSize": "Small",
+				"nodeSizeFamily": "MemoryOptimized",
+				"sparkVersion": "3.5",
+				"isComputeIsolationEnabled": false,
+				"sessionLevelPackagesEnabled": false,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "westus2"
 		}
 	]
 }
