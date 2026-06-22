@@ -1,0 +1,23 @@
+{
+	"name": "CsvDataset",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "quantsynapse-WorkspaceDefaultStorage",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "Processesed/csv",
+				"fileSystem": "quant-container"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": []
+	}
+}
